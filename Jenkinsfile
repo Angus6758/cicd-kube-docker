@@ -1,16 +1,13 @@
 pipeline {
-
     agent any
-/*
-	tools {
-        maven "maven3"
-    }
-*/
+
     environment {
         registry = "kuberizwan/vproappdock"
         registryCredential = 'dockerhub'
     }
-        stage('BUILD'){
+
+    stages {
+        stage('BUILD') {
             steps {
                 sh 'mvn clean install -DskipTests'
             }
@@ -22,19 +19,19 @@ pipeline {
             }
         }
 
-        stage('UNIT TEST'){
+        stage('UNIT TEST') {
             steps {
                 sh 'mvn test'
             }
         }
 
-        stage('INTEGRATION TEST'){
+        stage('INTEGRATION TEST') {
             steps {
                 sh 'mvn verify -DskipUnitTests'
             }
         }
 
-        stage ('CODE ANALYSIS WITH CHECKSTYLE'){
+        stage ('CODE ANALYSIS WITH CHECKSTYLE') {
             steps {
                 sh 'mvn checkstyle:checkstyle'
             }
@@ -46,11 +43,9 @@ pipeline {
         }
 
         stage('CODE ANALYSIS with SONARQUBE') {
-
             environment {
                 scannerHome = tool 'mysonarscanner4'
             }
-
             steps {
                 withSonarQubeEnv('sonar-pro') {
                     sh '''${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=vprofile \
@@ -62,18 +57,18 @@ pipeline {
                    -Dsonar.jacoco.reportsPath=target/jacoco.exec \
                    -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml'''
                 }
-
                 timeout(time: 10, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
             }
         }
+
         stage('Build App Image') {
             steps {
                 script {
                     dockerImage = docker.build registry + ":V$BUILD_NUMBER"
                 }
-                }
+            }
         }
 
         stage('Upload Image') {
@@ -87,20 +82,17 @@ pipeline {
             }
         }
 
-        stage('Remove Unuesd docker image') {
+        stage('Remove Unused docker image') {
             steps {
                 sh "docker rmi $registry:V$BUILD_NUMBER"
             }
         }
 
         stage('Kubernetes Deploy') {
-            agent {label 'KOPS'}
-                steps {
-                    sh "helm upgrade --install --force vprofile-stack helm/vprofilecharts --set appimage=${registry}:V${BUILD_NUMBER} --namespace prod"
-                }
+            agent { label 'KOPS' }
+            steps {
+                sh "helm upgrade --install --force vprofile-stack helm/vprofilecharts --set appimage=${registry}:V${BUILD_NUMBER} --namespace prod"
+            }
         }
-
     }
-
-
- }
+}
