@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        registry = "kuberizwan/vproappdock"
+        registry = "kuberizwan700/vproappdock"
         registryCredential = 'dockerhub'
     }
 
